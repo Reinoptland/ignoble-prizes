@@ -1,11 +1,81 @@
-import Head from 'next/head'
-import Image from 'next/image'
-import { Inter } from 'next/font/google'
-import styles from '@/styles/Home.module.css'
+import axios from "axios";
+import Head from "next/head";
+import { useEffect, useState } from "react";
 
-const inter = Inter({ subsets: ['latin'] })
+// 0. Make a request for what years the api has data
+// 1. Make buttons 1992 -> 2022
+
+// When you click a button with a year, display the prizes for that year!
+// 1. Make states ->
+// - what year did the user click (query) year, setYear
+// - the prizes for that year (from the api)
+
+// 2. Detect when the user clicks (and what)
+// 3. Call api
+// 4. Save the prizes, display the prizes
 
 export default function Home() {
+  const [years, setYears] = useState<number[]>([]);
+  const [year, setYear] = useState<number | null>(1992);
+  const [prizes, setPrizes] = useState([]);
+
+  // infinite loop
+  // if (years.length === 0) {
+  //   axios.get("https://ignoble-api.onrender.com/years").then((response) => {
+  //     setYears(response.data.years);
+  //   });
+  // }
+
+  useEffect(() => {
+    async function getYears() {
+      const response = await axios.get(
+        "https://ignoble-api.onrender.com/years"
+      );
+      console.log(response.data.years);
+      setYears(response.data.years);
+    }
+
+    getYears();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    console.log("EFFECT: USER CHANGED THE YEAR:", year);
+
+    async function getPrizes() {
+      setPrizes([]);
+      try {
+        const response = await axios.get(
+          `https://ignoble-api.onrender.com/years/${year}/prizes`,
+          {
+            signal: controller.signal,
+          }
+        );
+        console.log(response.data.prizes);
+
+        setPrizes(response.data.prizes);
+      } catch (error) {
+        if (error.code === "ERR_CANCELED") {
+          return; // this is ok
+        } else {
+          // handle this!
+        }
+      }
+    }
+
+    getPrizes();
+
+    return () => {
+      console.log("CLEANUP: CLEANUP FOR THIS YEAR:", year);
+      controller.abort();
+    };
+  }, [year]);
+
+  async function displayPrizes(year: number) {
+    console.log("USER CLICKS:", year);
+    setYear(year);
+  }
+
   return (
     <>
       <Head>
@@ -14,110 +84,27 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main className={styles.main}>
-        <div className={styles.description}>
-          <p>
-            Get started by editing&nbsp;
-            <code className={styles.code}>pages/index.tsx</code>
-          </p>
-          <div>
-            <a
-              href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              By{' '}
-              <Image
-                src="/vercel.svg"
-                alt="Vercel Logo"
-                className={styles.vercelLogo}
-                width={100}
-                height={24}
-                priority
-              />
-            </a>
-          </div>
-        </div>
-
-        <div className={styles.center}>
-          <Image
-            className={styles.logo}
-            src="/next.svg"
-            alt="Next.js Logo"
-            width={180}
-            height={37}
-            priority
-          />
-          <div className={styles.thirteen}>
-            <Image
-              src="/thirteen.svg"
-              alt="13"
-              width={40}
-              height={31}
-              priority
-            />
-          </div>
-        </div>
-
-        <div className={styles.grid}>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Docs <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Find in-depth information about Next.js features and&nbsp;API.
-            </p>
-          </a>
-
-          <a
-            href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Learn <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Learn about Next.js in an interactive course with&nbsp;quizzes!
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Templates <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Discover and deploy boilerplate example Next.js&nbsp;projects.
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Deploy <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Instantly deploy your Next.js site to a shareable URL
-              with&nbsp;Vercel.
-            </p>
-          </a>
+      <main>
+        {years.map((year) => {
+          return (
+            <button key={year} onClick={() => displayPrizes(year)}>
+              {year}
+            </button>
+          );
+        })}
+        <div>
+          <h1>Prizes for: {year}</h1>
+          {prizes.map((prize) => {
+            return (
+              <div key={prize.id}>
+                <h2>{prize.category}</h2>
+                <p>{prize.year}</p>
+                <p>{prize.rationale}</p>
+              </div>
+            );
+          })}
         </div>
       </main>
     </>
-  )
+  );
 }
